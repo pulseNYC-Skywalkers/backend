@@ -1,0 +1,30 @@
+# =============================================================================
+# Wound-Care Billing Rules — biller-editable
+# =============================================================================
+# A non-technical biller owns this file. The decision engine is a PURE FUNCTION
+# of (canonical_patient, this config): change a value here, re-run only Decide,
+# and every decision updates — no re-fetch, no LLM, fully explainable.
+#
+# Bump rules_version whenever you change a rule. Each decision records the version
+# it was made under, so a config change is re-derivable and auditable.
+rules_version: "rules_v1"
+
+# --- Payer eligibility -------------------------------------------------------
+# Medicare Part B (MCB) is the primary billable population for wound care.
+# Managed care (HMO) is bundled -> not separately billable.
+payers:
+  billable: ["MCB"]              # bill outright (if data + coverage check out)
+  conditional: ["MCA", "MCD"]    # may be billable -> send to biller review
+  not_billable: ["HMO"]          # bundled / managed care -> do not bill
+
+# --- Coverage / diagnosis gates ---------------------------------------------
+require_active_coverage: true    # at least one coverage row with effective_to == null
+require_active_diagnosis: true   # at least one diagnosis with clinical_status == active
+
+# --- Wound documentation completeness ---------------------------------------
+# Required grounded facts before a claim can be billed. A biller can relax these
+# (e.g. drop depth_cm) without touching code.
+required_wound_fields: ["wound_type", "location", "length_cm", "width_cm"]
+
+# Wounds at/under this area (cm^2) are treated as healed/trivial -> not billable.
+min_wound_area_cm2: 0.0

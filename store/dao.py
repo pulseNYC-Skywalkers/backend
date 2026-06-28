@@ -265,3 +265,178 @@ class Store:
     def query(self, sql: str, params: Iterable[Any] | None = None) -> list[tuple]:
         with self._lock:
             return self._con.execute(sql, list(params) if params else None).fetchall()
+
+    def query_dicts(self, sql: str, params: Iterable[Any] | None = None) -> list[dict[str, Any]]:
+        with self._lock:
+            cur = self._con.execute(sql, list(params) if params else None)
+            cols = [d[0] for d in cur.description]
+            rows = cur.fetchall()
+        return [dict(zip(cols, r)) for r in rows]
+
+    # ------------------------------------------------------------------
+    # raw iteration helpers (used by extract / resolve stages)
+    # ------------------------------------------------------------------
+    def iter_raw(self, resource_type: str) -> list[dict[str, Any]]:
+        """All cached rows for a resource type, payload already JSON-decoded."""
+        rows = self.query_dicts(
+            """
+            SELECT resource_id, patient_id, facility_id, last_modified_at, payload
+            FROM raw_records WHERE resource_type=? ORDER BY resource_id
+            """,
+            [resource_type],
+        )
+        for r in rows:
+            r["payload"] = json.loads(r["payload"]) if r["payload"] else None
+        return rows
+
+    # ------------------------------------------------------------------
+    # extractions (Milestone 2)
+    # ------------------------------------------------------------------
+    def upsert_extraction(
+        self, *, internal_id: int, patient_id: str | None, facility_id: str | None,
+        source_type: str, source_id: str, wound_index: int, tier: str,
+        facts: Any, confidence: float, needs_review: bool,
+        review_reasons: Any, source_hash: str, extractor_version: str,
+    ) -> None:
+        with self._lock:
+            self._con.execute(
+                """
+                INSERT INTO extractions
+                    (internal_id, patient_id, facility_id, source_type, source_id,
+                     wound_index, tier, facts, confidence, needs_review,
+                     review_reasons, source_hash, extractor_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (internal_id, source_type, source_id, wound_index) DO UPDATE SET
+                    patient_id=excluded.patient_id, facility_id=excluded.facility_id,
+                    tier=excluded.tier, facts=excluded.facts,
+                    confidence=excluded.confidence, needs_review=excluded.needs_review,
+                    review_reasons=excluded.review_reasons, source_hash=excluded.source_hash,
+                    extractor_version=excluded.extractor_version, created_at=now()
+                """,
+                [internal_id, patient_id, facility_id, source_type, source_id,
+                 wound_index, tier, json.dumps(facts), confidence, needs_review,
+                 json.dumps(review_reasons), source_hash, extractor_version],
+            )
+
+    def extractions_for(self, internal_id: int) -> list[dict[str, Any]]:
+        rows = self.query_dicts(
+            "SELECT * FROM extractions WHERE internal_id=? ORDER BY source_type, source_id, wound_index",
+            [internal_id],
+        )
+        for r in rows:
+            r["facts"] = json.loads(r["facts"]) if r.get("facts") else {}
+            r["review_reasons"] = json.loads(r["review_reasons"]) if r.get("review_reasons") else []
+        return rows
+
+    def existing_extraction_hash(self, internal_id: int, source_type: str, source_id: str) -> str | None:
+        row = self.query(
+            "SELECT source_hash FROM extractions WHERE internal_id=? AND source_type=? AND source_id=? LIMIT 1",
+            [internal_id, source_type, source_id],
+        )
+        return row[0][0] if row else None
+
+    # ------------------------------------------------------------------
+    # canonical_patient (Milestone 3)
+    # ------------------------------------------------------------------
+    def upsert_canonical(self, rec: dict[str, Any]) -> None:
+        with self._lock:
+            self._con.execute(
+                """
+                INSERT INTO canonical_patient
+                    (internal_id, patient_id, facility_id, first_name, last_name,
+                     primary_payer_code, coverage, diagnoses, primary_wound,
+                     all_wounds, n_notes, n_assessments, needs_review,
+                     review_reasons, source_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (internal_id) DO UPDATE SET
+                    patient_id=excluded.patient_id, facility_id=excluded.facility_id,
+                    first_name=excluded.first_name, last_name=excluded.last_name,
+                    primary_payer_code=excluded.primary_payer_code,
+                    coverage=excluded.coverage, diagnoses=excluded.diagnoses,
+                    primary_wound=excluded.primary_wound, all_wounds=excluded.all_wounds,
+                    n_notes=excluded.n_notes, n_assessments=excluded.n_assessments,
+                    needs_review=excluded.needs_review, review_reasons=excluded.review_reasons,
+                    source_hash=excluded.source_hash, resolved_at=now()
+                """,
+                [rec["internal_id"], rec.get("patient_id"), rec.get("facility_id"),
+                 rec.get("first_name"), rec.get("last_name"), rec.get("primary_payer_code"),
+                 json.dumps(rec.get("coverage")), json.dumps(rec.get("diagnoses")),
+                 json.dumps(rec.get("primary_wound")), json.dumps(rec.get("all_wounds")),
+                 rec.get("n_notes", 0), rec.get("n_assessments", 0),
+                 rec.get("needs_review", False), json.dumps(rec.get("review_reasons", [])),
+                 rec.get("source_hash")],
+            )
+
+    def all_canonical(self) -> list[dict[str, Any]]:
+        rows = self.query_dicts("SELECT * FROM canonical_patient ORDER BY internal_id")
+        for r in rows:
+            for col in ("coverage", "diagnoses", "primary_wound", "all_wounds", "review_reasons"):
+                r[col] = json.loads(r[col]) if r.get(col) else None
+        return rows
+
+    def get_canonical(self, internal_id: int) -> dict[str, Any] | None:
+        rows = self.query_dicts("SELECT * FROM canonical_patient WHERE internal_id=?", [internal_id])
+        if not rows:
+            return None
+        r = rows[0]
+        for col in ("coverage", "diagnoses", "primary_wound", "all_wounds", "review_reasons"):
+            r[col] = json.loads(r[col]) if r.get(col) else None
+        return r
+
+    # ------------------------------------------------------------------
+    # decisions (Milestone 4)
+    # ------------------------------------------------------------------
+    def upsert_decision(self, rec: dict[str, Any]) -> None:
+        with self._lock:
+            self._con.execute(
+                """
+                INSERT INTO decisions
+                    (internal_id, patient_id, facility_id, decision, reasons,
+                     eligibility, rules_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (internal_id) DO UPDATE SET
+                    patient_id=excluded.patient_id, facility_id=excluded.facility_id,
+                    decision=excluded.decision, reasons=excluded.reasons,
+                    eligibility=excluded.eligibility, rules_version=excluded.rules_version,
+                    decided_at=now()
+                """,
+                [rec["internal_id"], rec.get("patient_id"), rec.get("facility_id"),
+                 rec["decision"], json.dumps(rec.get("reasons", [])),
+                 json.dumps(rec.get("eligibility", {})), rec.get("rules_version")],
+            )
+
+    def all_decisions(self) -> list[dict[str, Any]]:
+        rows = self.query_dicts("SELECT * FROM decisions ORDER BY internal_id")
+        for r in rows:
+            r["reasons"] = json.loads(r["reasons"]) if r.get("reasons") else []
+            r["eligibility"] = json.loads(r["eligibility"]) if r.get("eligibility") else {}
+        return rows
+
+    def decision_counts(self) -> dict[str, int]:
+        rows = self.query("SELECT decision, COUNT(*) FROM decisions GROUP BY decision")
+        return {d: int(n) for d, n in rows}
+
+    # ------------------------------------------------------------------
+    # watermarks (Milestone 6 — incremental `since`)
+    # ------------------------------------------------------------------
+    def get_watermark(self, resource_type: str) -> str | None:
+        row = self.query("SELECT since_value FROM watermarks WHERE resource_type=?", [resource_type])
+        return row[0][0] if row else None
+
+    def set_watermark(self, resource_type: str, since_value: str) -> None:
+        with self._lock:
+            self._con.execute(
+                """
+                INSERT INTO watermarks (resource_type, since_value) VALUES (?, ?)
+                ON CONFLICT (resource_type) DO UPDATE SET
+                    since_value=excluded.since_value, updated_at=now()
+                """,
+                [resource_type, since_value],
+            )
+
+    def max_last_modified(self, resource_type: str) -> str | None:
+        row = self.query(
+            "SELECT MAX(last_modified_at) FROM raw_records WHERE resource_type=?",
+            [resource_type],
+        )
+        return str(row[0][0]) if row and row[0][0] is not None else None

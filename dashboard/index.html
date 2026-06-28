@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wound-Care Billing — Biller View</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#171d26; --panel2:#1e2530; --line:#2a3340;
+    --text:#e6edf3; --muted:#8b98a8; --accent:#4f9cf9;
+    --bill:#2ea043; --flag:#d29922; --nobill:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text)}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;align-items:center}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px}
+  .stat b{font-size:15px;display:block}
+  .muted{color:var(--muted)}
+  .layout{display:grid;grid-template-columns:minmax(420px,1fr) minmax(420px,1.2fr);
+          height:calc(100vh - 59px)}
+  .col{overflow:auto;padding:16px}
+  .col.left{border-right:1px solid var(--line)}
+  .toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  .chip{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+        padding:5px 11px;border-radius:20px;font-size:12px}
+  .chip.active{border-color:var(--accent);background:#1b2c44;color:#cfe3ff}
+  input[type=search]{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
+        color:var(--text);border-radius:8px;padding:7px 10px;font-size:13px}
+  table{width:100%;border-collapse:collapse}
+  th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:11px;
+     text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:13px}
+  tr.row{cursor:pointer}
+  tr.row:hover td{background:var(--panel2)}
+  tr.row.sel td{background:#1b2c44}
+  .badge{font-size:11px;font-weight:650;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .b-bill{background:rgba(46,160,67,.18);color:#56d364}
+  .b-flag_for_review{background:rgba(210,153,34,.18);color:#e3b341}
+  .b-do_not_bill{background:rgba(248,81,73,.18);color:#ff7b72}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .reasons{list-style:none;padding:0;margin:10px 0 0}
+  .reasons li{padding:7px 10px;background:var(--panel2);border-left:3px solid var(--line);
+       border-radius:4px;margin-bottom:6px;font-size:13px}
+  .src{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;
+       background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:12px;line-height:1.7}
+  mark{border-radius:3px;padding:0 1px;color:#0b0f14;font-weight:600;cursor:help}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .legend span{font-size:11px;padding:1px 7px;border-radius:4px;color:#0b0f14;font-weight:600}
+  .srchdr{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px}
+  .srchdr .t{font-weight:650}
+  .pill{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
+  .empty{color:var(--muted);text-align:center;padding:40px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🩹 Wound-Care Billing <span class="muted">· Biller View</span></h1>
+  <div class="stats" id="stats"></div>
+</header>
+<div class="layout">
+  <div class="col left">
+    <div class="toolbar">
+      <span class="chip active" data-d="">All</span>
+      <span class="chip" data-d="bill">Bill</span>
+      <span class="chip" data-d="flag_for_review">Review</span>
+      <span class="chip" data-d="do_not_bill">Don't bill</span>
+      <input type="search" id="q" placeholder="Search name or patient id…" />
+    </div>
+    <table>
+      <thead><tr><th>Patient</th><th>Payer</th><th>Wound</th><th>Decision</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="col right" id="detail">
+    <div class="empty">Select a patient to see the decision and grounded source.</div>
+  </div>
+</div>
+<script>
+const FIELD_COLORS = {
+  wound_type:"#79c0ff", location:"#7ee787", length_cm:"#ffa657", width_cm:"#ffa657",
+  depth_cm:"#ffa657", stage:"#d2a8ff", drainage_type:"#f0883e", drainage_amount:"#f0883e",
+  granulation_pct:"#56d364", slough_pct:"#e3b341", periwound:"#ff9bce", laterality:"#a5d6ff"
+};
+let curFilter="", curId=null;
+
+function esc(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+async function loadSummary(){
+  const s = await (await fetch("/api/summary")).json();
+  const d = s.decisions||{};
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><span class="muted">Coverage</span><b>${s.coverage.coverage_pct}%</b></div>
+    <div class="stat"><span class="muted">Patients</span><b>${s.patients}</b></div>
+    <div class="stat"><span class="muted">Bill</span><b style="color:#56d364">${d.bill||0}</b></div>
+    <div class="stat"><span class="muted">Review</span><b style="color:#e3b341">${d.flag_for_review||0}</b></div>
+    <div class="stat"><span class="muted">Don't bill</span><b style="color:#ff7b72">${d.do_not_bill||0}</b></div>
+    <div class="stat"><span class="muted">Rules</span><b>${s.rules_version}</b></div>`;
+}
+
+async function loadRows(){
+  const q = document.getElementById("q").value;
+  const url = `/api/patients?decision=${encodeURIComponent(curFilter)}&q=${encodeURIComponent(q)}`;
+  const data = await (await fetch(url)).json();
+  const tb = document.getElementById("rows");
+  tb.innerHTML = data.patients.map(p=>`
+    <tr class="row ${p.internal_id===curId?'sel':''}" onclick="openPatient(${p.internal_id})">
+      <td><b>${esc(p.patient_id)}</b><br><span class="muted">${esc(p.name)} · Fac ${esc(p.facility_id)}</span></td>
+      <td>${esc(p.payer)||'—'}</td>
+      <td>${esc(p.wound_type)||'—'}<br><span class="muted">${esc(p.location)||''} ${p.area_cm2?('· '+p.area_cm2+' cm²'):''}</span></td>
+      <td><span class="badge b-${p.decision}">${p.decision.replace(/_/g,' ')}</span></td>
+    </tr>`).join("") || `<tr><td colspan=4 class="empty">No patients match.</td></tr>`;
+}
+
+function highlight(text, spans){
+  spans = [...spans].sort((a,b)=>a.start-b.start);
+  let out="", pos=0, lastEnd=-1;
+  for(const sp of spans){
+    if(sp.start<lastEnd) continue;            // skip overlaps
+    if(sp.start<pos) continue;
+    out += esc(text.slice(pos, sp.start));
+    const color = FIELD_COLORS[sp.field]||"#cccccc";
+    out += `<mark style="background:${color}" title="${esc(sp.field)} = ${esc(String(sp.value))} (conf ${sp.confidence})">`
+         + esc(text.slice(sp.start, sp.end)) + `</mark>`;
+    pos = sp.end; lastEnd = sp.end;
+  }
+  out += esc(text.slice(pos));
+  return out;
+}
+
+async function openPatient(id){
+  curId=id; loadRows();
+  const d = await (await fetch(`/api/patient/${id}`)).json();
+  const c=d.canonical, dec=d.decision||{};
+  const reasons=(dec.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("");
+  const srcHtml = d.sources.map(src=>{
+    const usedFields=[...new Set(src.spans.map(s=>s.field))];
+    const legend = usedFields.map(f=>`<span style="background:${FIELD_COLORS[f]||'#ccc'}">${f}</span>`).join("");
+    return `<div class="srchdr"><span class="t">${src.source_type==='note'?'📝 Progress note':'📋 Assessment'} #${esc(src.source_id)}</span>
+        <span class="pill">tier: ${src.tier} · conf ${src.confidence}${src.needs_review?' · ⚠ review':''}</span></div>
+      <div class="legend">${legend}</div>
+      <div class="src">${highlight(src.text||'(no source text)', src.spans)}</div>`;
+  }).join("");
+  document.getElementById("detail").innerHTML = `
+    <div class="card">
+      <h2>${esc(c.patient_id)} <span class="badge b-${dec.decision}">${(dec.decision||'—').replace(/_/g,' ')}</span></h2>
+      <div class="muted">${esc(c.first_name||'')} ${esc(c.last_name||'')} · Facility ${esc(c.facility_id)} · Payer ${esc(c.primary_payer_code)||'—'} · ${c.n_notes} note(s), ${c.n_assessments} assessment(s)</div>
+      <ul class="reasons">${reasons||'<li class="muted">No reasons.</li>'}</ul>
+    </div>
+    <div class="card">
+      <div class="muted" style="margin-bottom:4px">Grounded source — every highlight is a fact mapped to its exact span. Hover to inspect.</div>
+      ${srcHtml||'<div class="empty">No extracted sources.</div>'}
+    </div>`;
+}
+
+document.querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{
+  document.querySelectorAll(".chip").forEach(c=>c.classList.remove("active"));
+  ch.classList.add("active"); curFilter=ch.dataset.d; loadRows();
+});
+document.getElementById("q").addEventListener("input", ()=>loadRows());
+loadSummary(); loadRows();
+</script>
+</body>
+</html>
