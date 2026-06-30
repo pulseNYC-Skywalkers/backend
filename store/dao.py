@@ -24,12 +24,14 @@ SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
 class Store:
-    def __init__(self, db_path: str | None = None) -> None:
+    def __init__(self, db_path: str | None = None, *, read_only: bool = False) -> None:
         self.db_path = db_path or settings.STORE.duckdb_path
+        self._read_only = read_only
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._con = duckdb.connect(self.db_path)
-        self._init_schema()
+        self._con = duckdb.connect(self.db_path, read_only=read_only)
+        if not read_only:
+            self._init_schema()
 
     def _init_schema(self) -> None:
         with self._lock:
@@ -440,3 +442,63 @@ class Store:
             [resource_type],
         )
         return str(row[0][0]) if row and row[0][0] is not None else None
+
+    # ------------------------------------------------------------------
+    # biller_overrides (Milestone 5 — human approval)
+    # ------------------------------------------------------------------
+    def get_override(self, internal_id: int) -> dict[str, Any] | None:
+        rows = self.query_dicts(
+            "SELECT * FROM biller_overrides WHERE internal_id=?", [internal_id]
+        )
+        if not rows:
+            return None
+        r = rows[0]
+        r["optional_fields"] = json.loads(r["optional_fields"]) if r.get("optional_fields") else []
+        return r
+
+    def all_overrides(self) -> dict[int, dict[str, Any]]:
+        rows = self.query_dicts("SELECT * FROM biller_overrides")
+        out: dict[int, dict[str, Any]] = {}
+        for r in rows:
+            r["optional_fields"] = json.loads(r["optional_fields"]) if r.get("optional_fields") else []
+            out[r["internal_id"]] = r
+        return out
+
+    def upsert_override(
+        self, *, internal_id: int, patient_id: str | None,
+        approved: bool, optional_fields: list[str] | None = None,
+        biller_note: str | None = None,
+    ) -> None:
+        with self._lock:
+            self._con.execute(
+                """
+                INSERT INTO biller_overrides
+                    (internal_id, patient_id, approved, optional_fields, biller_note, approved_at)
+                VALUES (?, ?, ?, ?, ?, CASE WHEN ? THEN now() ELSE NULL END)
+                ON CONFLICT (internal_id) DO UPDATE SET
+                    patient_id=excluded.patient_id,
+                    approved=excluded.approved,
+                    optional_fields=excluded.optional_fields,
+                    biller_note=excluded.biller_note,
+                    approved_at=CASE WHEN excluded.approved THEN now() ELSE biller_overrides.approved_at END,
+                    updated_at=now()
+                """,
+                [internal_id, patient_id, approved,
+                 json.dumps(optional_fields or []), biller_note or "", approved],
+            )
+
+    def effective_decision_counts(self) -> dict[str, int]:
+        """Decision counts after biller approvals (approved review -> bill)."""
+        overrides = self.all_overrides()
+        counts: dict[str, int] = {"bill": 0, "flag_for_review": 0, "do_not_bill": 0}
+        for d in self.all_decisions():
+            eff = self._effective_decision_value(d, overrides.get(d["internal_id"]))
+            counts[eff] = counts.get(eff, 0) + 1
+        return counts
+
+    @staticmethod
+    def _effective_decision_value(decision: dict[str, Any], override: dict[str, Any] | None) -> str:
+        sys_dec = decision.get("decision", "flag_for_review")
+        if override and override.get("approved") and sys_dec == "flag_for_review":
+            return "bill"
+        return sys_dec

@@ -6,78 +6,137 @@
 <title>Wound-Care Billing — Biller View</title>
 <style>
   :root{
-    --bg:#0f1419; --panel:#171d26; --panel2:#1e2530; --line:#2a3340;
-    --text:#e6edf3; --muted:#8b98a8; --accent:#4f9cf9;
-    --bill:#2ea043; --flag:#d29922; --nobill:#f85149;
+    --bg:#ffffff; --panel:#ffffff; --panel2:#f6f8fa; --line:#d0d7de;
+    --text:#1f2328; --muted:#656d76; --accent:#0969da;
+    --bill:#1a7f37; --flag:#9a6700; --nobill:#cf222e;
+    --bill-bg:#dafbe1; --flag-bg:#fff8c5; --nobill-bg:#ffebe9;
+    --sel-bg:#eef6ff; --sel-border:#0969da;
   }
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
        background:var(--bg);color:var(--text)}
-  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
-         display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
-  header h1{font-size:16px;margin:0;font-weight:650}
-  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;align-items:center}
-  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px}
-  .stat b{font-size:15px;display:block}
+  header{padding:14px 24px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:5;
+         box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  header h1{font-size:18px;margin:0;font-weight:650;color:var(--text)}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:12px}
+  .stat b{font-size:16px;display:block;color:var(--text)}
   .muted{color:var(--muted)}
-  .layout{display:grid;grid-template-columns:minmax(420px,1fr) minmax(420px,1.2fr);
-          height:calc(100vh - 59px)}
-  .col{overflow:auto;padding:16px}
-  .col.left{border-right:1px solid var(--line)}
-  .toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
-  .chip{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--text);
-        padding:5px 11px;border-radius:20px;font-size:12px}
-  .chip.active{border-color:var(--accent);background:#1b2c44;color:#cfe3ff}
-  input[type=search]{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
-        color:var(--text);border-radius:8px;padding:7px 10px;font-size:13px}
-  table{width:100%;border-collapse:collapse}
-  th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:11px;
-     text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
-  td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:13px}
-  tr.row{cursor:pointer}
-  tr.row:hover td{background:var(--panel2)}
-  tr.row.sel td{background:#1b2c44}
-  .badge{font-size:11px;font-weight:650;padding:2px 9px;border-radius:20px;white-space:nowrap}
-  .b-bill{background:rgba(46,160,67,.18);color:#56d364}
-  .b-flag_for_review{background:rgba(210,153,34,.18);color:#e3b341}
-  .b-do_not_bill{background:rgba(248,81,73,.18);color:#ff7b72}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
-  .card h2{margin:0 0 4px;font-size:17px}
-  .reasons{list-style:none;padding:0;margin:10px 0 0}
-  .reasons li{padding:7px 10px;background:var(--panel2);border-left:3px solid var(--line);
-       border-radius:4px;margin-bottom:6px;font-size:13px}
-  .src{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;
-       background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:12px;line-height:1.7}
-  mark{border-radius:3px;padding:0 1px;color:#0b0f14;font-weight:600;cursor:help}
-  .legend{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-  .legend span{font-size:11px;padding:1px 7px;border-radius:4px;color:#0b0f14;font-weight:600}
-  .srchdr{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px}
-  .srchdr .t{font-weight:650}
-  .pill{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
-  .empty{color:var(--muted);text-align:center;padding:40px}
+  .layout{display:grid;grid-template-columns:minmax(520px,44%) 1fr;height:calc(100vh - 60px)}
+  .col{overflow:auto;padding:16px 20px;background:var(--bg)}
+  .col.left{border-right:1px solid var(--line);background:#fafbfc;padding:16px}
+  .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .chip{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);
+        padding:7px 14px;border-radius:20px;font-size:13px;transition:background .15s}
+  .chip:hover{background:var(--panel2)}
+  .chip.active{border-color:var(--accent);background:var(--sel-bg);color:var(--accent);font-weight:600}
+  input[type=search]{width:100%;background:#fff;border:1px solid var(--line);
+        color:var(--text);border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px}
+  input[type=search]:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  /* Patient worklist table */
+  .ptable-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .ptable{width:100%;border-collapse:collapse;table-layout:fixed;min-width:480px}
+  .ptable th{position:sticky;top:0;background:#f6f8fa;text-align:left;font-size:11px;
+     text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:10px 12px;
+     border-bottom:1px solid var(--line);font-weight:600}
+  .ptable th:nth-child(1){width:28%}
+  .ptable th:nth-child(2){width:14%}
+  .ptable th:nth-child(3){width:34%}
+  .ptable th:nth-child(4){width:24%}
+  .ptable td{padding:11px 12px;border-bottom:1px solid var(--line);font-size:13px;
+     vertical-align:top;word-wrap:break-word}
+  .ptable tr.row{cursor:pointer;transition:background .12s}
+  .ptable tr.row:hover td{background:#f6f8fa}
+  .ptable tr.row.sel td{background:var(--sel-bg)}
+  .ptable tr.row.sel td:first-child{border-left:3px solid var(--sel-border)}
+  .ptable .pid{font-weight:650;font-size:14px;color:var(--text)}
+  .ptable .subline{font-size:12px;color:var(--muted);margin-top:2px}
+  .badge{display:inline-block;font-size:11px;font-weight:650;padding:4px 10px;border-radius:20px;white-space:nowrap}
+  .b-bill{background:var(--bill-bg);color:var(--bill)}
+  .b-flag_for_review{background:var(--flag-bg);color:var(--flag)}
+  .b-do_not_bill{background:var(--nobill-bg);color:var(--nobill)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:16px;
+        box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{margin:0 0 6px;font-size:20px;line-height:1.3}
+  .card h3{margin:0 0 10px;font-size:15px;color:var(--accent);font-weight:650}
+  .headline{font-size:18px;font-weight:650;margin-bottom:4px;color:var(--text)}
+  .sub{font-size:13px;color:var(--muted)}
+  .qa{margin:0;padding:0;list-style:none}
+  .qa li{padding:10px 0;border-bottom:1px solid var(--line)}
+  .qa li:last-child{border-bottom:none}
+  .qa .q{font-weight:650;color:var(--text);font-size:14px;margin-bottom:3px}
+  .qa .a{font-size:14px;color:#424a53}
+  .review-box{background:#fffbeb;border:1px solid #f0c040;border-radius:10px;padding:14px 18px;margin-bottom:16px}
+  .review-box h3{margin:0 0 8px;color:var(--flag);font-size:15px}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+  .field-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;
+              border-radius:8px;font-size:13px;border:1px solid var(--line)}
+  .field-item.present{border-color:#1a7f37;background:#f0fff4}
+  .field-item.missing{border-color:#cf222e;background:#fff5f5}
+  .field-item.waived{border-color:#9a6700;background:#fffbeb}
+  .field-item input{margin:0}
+  .field-item .icon{font-size:16px;width:18px;text-align:center}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{cursor:pointer;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:650}
+  .btn-primary{background:#1a7f37;color:#fff}
+  .btn-primary:hover{background:#2da44e}
+  .btn-secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
+  .btn-export{background:#fff;color:var(--accent);border:1px solid var(--accent);font-size:13px;padding:7px 14px}
+  .btn-export:hover{background:var(--sel-bg)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  textarea{width:100%;background:#fff;border:1px solid var(--line);color:var(--text);
+           border-radius:8px;padding:10px;font-size:13px;margin-top:8px;min-height:60px;resize:vertical}
+  details{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:#fafbfc}
+  details summary{cursor:pointer;padding:12px 14px;font-weight:650;font-size:13px;color:var(--muted)}
+  details[open] summary{border-bottom:1px solid var(--line);color:var(--text);background:#f6f8fa}
+  .src-body{padding:12px 14px;background:#fff}
+  .src{font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;
+       line-height:1.65;background:#f6f8fa;border:1px solid var(--line);border-radius:8px;padding:12px;color:var(--text)}
+  mark{border-radius:3px;padding:0 2px;color:#1f2328;font-weight:600}
+  .legend{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .legend span{font-size:10px;padding:2px 7px;border-radius:4px;color:#1f2328;font-weight:600}
+  .empty{color:var(--muted);text-align:center;padding:48px 20px}
+  .approved-banner{background:#dafbe1;border:1px solid #1a7f37;border-radius:10px;padding:12px 16px;
+                   color:var(--bill);margin-bottom:14px;font-weight:650}
+  .blocker{padding:8px 12px;background:#fff;border-left:3px solid var(--flag);
+            border-radius:4px;margin-bottom:8px;font-size:13px;border:1px solid var(--line);border-left-width:3px}
+  .blocker b{display:block;color:var(--flag);margin-bottom:2px}
+  @media(max-width:1100px){.layout{grid-template-columns:1fr;height:auto}.field-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header>
-  <h1>🩹 Wound-Care Billing <span class="muted">· Biller View</span></h1>
+  <h1>🩹 Wound-Care Billing</h1>
+  <a class="btn btn-export" href="/api/export/rules" download>⬇ Rules (Excel)</a>
+  <a class="btn btn-export" href="/api/export?format=xlsx" download>⬇ Patients (Excel)</a>
   <div class="stats" id="stats"></div>
 </header>
 <div class="layout">
   <div class="col left">
+    <input type="search" id="q" placeholder="Search patient name or ID…" />
     <div class="toolbar">
       <span class="chip active" data-d="">All</span>
-      <span class="chip" data-d="bill">Bill</span>
-      <span class="chip" data-d="flag_for_review">Review</span>
+      <span class="chip" data-d="bill">Ready to bill</span>
+      <span class="chip" data-d="flag_for_review">Needs review</span>
       <span class="chip" data-d="do_not_bill">Don't bill</span>
-      <input type="search" id="q" placeholder="Search name or patient id…" />
     </div>
-    <table>
-      <thead><tr><th>Patient</th><th>Payer</th><th>Wound</th><th>Decision</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="ptable-wrap">
+      <table class="ptable">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Payer</th>
+            <th>Wound</th>
+            <th>Decision</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
   </div>
-  <div class="col right" id="detail">
-    <div class="empty">Select a patient to see the decision and grounded source.</div>
+  <div class="col" id="detail">
+    <div class="empty">← Select a patient to see their billing summary</div>
   </div>
 </div>
 <script>
@@ -86,7 +145,8 @@ const FIELD_COLORS = {
   depth_cm:"#ffa657", stage:"#d2a8ff", drainage_type:"#f0883e", drainage_amount:"#f0883e",
   granulation_pct:"#56d364", slough_pct:"#e3b341", periwound:"#ff9bce", laterality:"#a5d6ff"
 };
-let curFilter="", curId=null;
+const DECISION_LABEL = {bill:"Ready to bill", flag_for_review:"Needs review", do_not_bill:"Do not bill"};
+let curFilter="", curId=null, curData=null;
 
 function esc(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 
@@ -94,67 +154,152 @@ async function loadSummary(){
   const s = await (await fetch("/api/summary")).json();
   const d = s.decisions||{};
   document.getElementById("stats").innerHTML = `
-    <div class="stat"><span class="muted">Coverage</span><b>${s.coverage.coverage_pct}%</b></div>
     <div class="stat"><span class="muted">Patients</span><b>${s.patients}</b></div>
-    <div class="stat"><span class="muted">Bill</span><b style="color:#56d364">${d.bill||0}</b></div>
-    <div class="stat"><span class="muted">Review</span><b style="color:#e3b341">${d.flag_for_review||0}</b></div>
-    <div class="stat"><span class="muted">Don't bill</span><b style="color:#ff7b72">${d.do_not_bill||0}</b></div>
-    <div class="stat"><span class="muted">Rules</span><b>${s.rules_version}</b></div>`;
+    <div class="stat"><span class="muted">Ready to bill</span><b style="color:var(--bill)">${d.bill||0}</b></div>
+    <div class="stat"><span class="muted">Needs review</span><b style="color:var(--flag)">${d.flag_for_review||0}</b></div>
+    <div class="stat"><span class="muted">Don't bill</span><b style="color:var(--nobill)">${d.do_not_bill||0}</b></div>
+    ${s.biller_approved?`<div class="stat"><span class="muted">You approved</span><b>${s.biller_approved}</b></div>`:""}`;
 }
 
 async function loadRows(){
   const q = document.getElementById("q").value;
   const url = `/api/patients?decision=${encodeURIComponent(curFilter)}&q=${encodeURIComponent(q)}`;
   const data = await (await fetch(url)).json();
-  const tb = document.getElementById("rows");
-  tb.innerHTML = data.patients.map(p=>`
+  document.getElementById("rows").innerHTML = data.patients.map(p=>`
     <tr class="row ${p.internal_id===curId?'sel':''}" onclick="openPatient(${p.internal_id})">
-      <td><b>${esc(p.patient_id)}</b><br><span class="muted">${esc(p.name)} · Fac ${esc(p.facility_id)}</span></td>
+      <td>
+        <div class="pid">${esc(p.patient_id)}</div>
+        <div class="subline">${esc(p.name)} · Fac ${esc(p.facility_id)}</div>
+        ${p.biller_approved?'<div class="subline" style="color:var(--bill)">✓ Biller approved</div>':''}
+      </td>
       <td>${esc(p.payer)||'—'}</td>
-      <td>${esc(p.wound_type)||'—'}<br><span class="muted">${esc(p.location)||''} ${p.area_cm2?('· '+p.area_cm2+' cm²'):''}</span></td>
-      <td><span class="badge b-${p.decision}">${p.decision.replace(/_/g,' ')}</span></td>
-    </tr>`).join("") || `<tr><td colspan=4 class="empty">No patients match.</td></tr>`;
+      <td>
+        ${esc(p.wound_type)||'—'}
+        ${p.location?`<div class="subline">${esc(p.location)}${p.area_cm2?' · '+p.area_cm2+' cm²':''}</div>`:''}
+      </td>
+      <td><span class="badge b-${p.decision}">${DECISION_LABEL[p.decision]||p.decision}</span></td>
+    </tr>`).join("") || `<tr><td colspan="4" class="empty">No patients match.</td></tr>`;
 }
 
 function highlight(text, spans){
   spans = [...spans].sort((a,b)=>a.start-b.start);
   let out="", pos=0, lastEnd=-1;
   for(const sp of spans){
-    if(sp.start<lastEnd) continue;            // skip overlaps
-    if(sp.start<pos) continue;
+    if(sp.start<lastEnd||sp.start<pos) continue;
     out += esc(text.slice(pos, sp.start));
-    const color = FIELD_COLORS[sp.field]||"#cccccc";
-    out += `<mark style="background:${color}" title="${esc(sp.field)} = ${esc(String(sp.value))} (conf ${sp.confidence})">`
+    const color = FIELD_COLORS[sp.field]||"#ccc";
+    out += `<mark style="background:${color}" title="${esc(sp.field)}: ${esc(String(sp.value))}">`
          + esc(text.slice(sp.start, sp.end)) + `</mark>`;
     pos = sp.end; lastEnd = sp.end;
   }
-  out += esc(text.slice(pos));
-  return out;
+  return out + esc(text.slice(pos));
+}
+
+function renderQa(sections){
+  return (sections||[]).map(sec=>`
+    <div class="card">
+      <h3>${esc(sec.title)}</h3>
+      <ul class="qa">${(sec.items||[]).map(it=>`
+        <li><div class="q">${esc(it.q)}</div><div class="a">${esc(it.a)}</div></li>`).join("")}</ul>
+    </div>`).join("");
+}
+
+function renderReviewPanel(d){
+  const rev = d.review||{};
+  if(d.effective_decision !== "flag_for_review" && !(d.override&&d.override.approved)) return "";
+
+  const blockers = (rev.blockers||[]).map(b=>`
+    <div class="blocker"><b>${esc(b.title)}</b>${esc(b.detail)}</div>`).join("");
+
+  const fields = (rev.field_checklist||[]).map(fc=>{
+    const icon = fc.status==="present"?"✓":fc.status==="waived"?"○":"✗";
+    const canWaive = fc.status==="missing";
+    return `<label class="field-item ${fc.status}">
+      <span class="icon">${icon}</span>
+      <span style="flex:1">${esc(fc.label)}${fc.value?`: <b>${esc(fc.value)}</b>`:""}</span>
+      ${canWaive?`<input type="checkbox" class="opt-field" data-field="${esc(fc.field)}" title="Mark as optional">`:''}
+    </label>`;
+  }).join("");
+
+  return `
+    <div class="review-box">
+      <h3>⚠ Why does this need review?</h3>
+      ${blockers||'<div class="muted">The system flagged this case for a biller to confirm.</div>'}
+      <div style="margin-top:12px;font-weight:650;font-size:13px">Required documentation checklist</div>
+      <div class="field-grid">${fields}</div>
+      <div class="muted" style="font-size:12px">Check any missing field you accept as optional for billing.</div>
+      <textarea id="billerNote" placeholder="Optional note (e.g. depth not required per our policy)">${esc((d.override&&d.override.biller_note)||"")}</textarea>
+      <div class="actions">
+        <button class="btn btn-primary" id="approveBtn" ${rev.can_approve||rev.system_decision==="flag_for_review"?"":"disabled"}
+          onclick="approvePatient(${d.canonical.internal_id})">
+          ✓ Approve for billing
+        </button>
+        <span class="muted" style="align-self:center;font-size:12px">Moves patient to the Ready to bill list</span>
+      </div>
+    </div>`;
+}
+
+function renderSources(sources){
+  if(!sources||!sources.length) return "";
+  return sources.map(src=>{
+    const legend = [...new Set(src.spans.map(s=>s.field))].map(f=>
+      `<span style="background:${FIELD_COLORS[f]||'#ccc'}">${f.replace(/_/g," ")}</span>`).join("");
+    const title = src.source_type==="note"?"Progress note":"Assessment";
+    return `<details>
+      <summary>📄 ${title} #${esc(src.source_id)} — view original chart text with highlights</summary>
+      <div class="src-body">
+        <div class="legend">${legend}</div>
+        <div class="src">${highlight(src.text||"", src.spans)}</div>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+function renderDetail(d){
+  const c = d.canonical, sm = d.summary||{}, eff = d.effective_decision;
+  const approved = d.override && d.override.approved;
+
+  document.getElementById("detail").innerHTML = `
+    ${approved?`<div class="approved-banner">✓ You approved this patient for billing on ${new Date(d.override.approved_at||Date.now()).toLocaleString()}</div>`:""}
+    <div class="card">
+      <div class="headline">${esc(sm.headline||DECISION_LABEL[eff])}</div>
+      <div class="sub">${esc(c.first_name||"")} ${esc(c.last_name||"")} · ${esc(c.patient_id)} · Facility ${esc(c.facility_id)} · Payer ${esc(c.primary_payer_code)||"—"}
+        · <span class="badge b-${eff}">${DECISION_LABEL[eff]||eff}</span>
+        ${d.system_decision!==eff?`<span class="muted"> (system said: ${DECISION_LABEL[d.system_decision]})</span>`:""}
+      </div>
+    </div>
+    ${renderReviewPanel(d)}
+    ${renderQa(sm.sections)}
+    <div class="card">
+      <h3>Original chart records</h3>
+      <div class="muted" style="font-size:13px;margin-bottom:8px">Expand to see the exact text from the EHR. Colored highlights show where each fact came from.</div>
+      ${renderSources(d.sources)||'<div class="muted">No source records.</div>'}
+    </div>`;
 }
 
 async function openPatient(id){
   curId=id; loadRows();
   const d = await (await fetch(`/api/patient/${id}`)).json();
-  const c=d.canonical, dec=d.decision||{};
-  const reasons=(dec.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("");
-  const srcHtml = d.sources.map(src=>{
-    const usedFields=[...new Set(src.spans.map(s=>s.field))];
-    const legend = usedFields.map(f=>`<span style="background:${FIELD_COLORS[f]||'#ccc'}">${f}</span>`).join("");
-    return `<div class="srchdr"><span class="t">${src.source_type==='note'?'📝 Progress note':'📋 Assessment'} #${esc(src.source_id)}</span>
-        <span class="pill">tier: ${src.tier} · conf ${src.confidence}${src.needs_review?' · ⚠ review':''}</span></div>
-      <div class="legend">${legend}</div>
-      <div class="src">${highlight(src.text||'(no source text)', src.spans)}</div>`;
-  }).join("");
-  document.getElementById("detail").innerHTML = `
-    <div class="card">
-      <h2>${esc(c.patient_id)} <span class="badge b-${dec.decision}">${(dec.decision||'—').replace(/_/g,' ')}</span></h2>
-      <div class="muted">${esc(c.first_name||'')} ${esc(c.last_name||'')} · Facility ${esc(c.facility_id)} · Payer ${esc(c.primary_payer_code)||'—'} · ${c.n_notes} note(s), ${c.n_assessments} assessment(s)</div>
-      <ul class="reasons">${reasons||'<li class="muted">No reasons.</li>'}</ul>
-    </div>
-    <div class="card">
-      <div class="muted" style="margin-bottom:4px">Grounded source — every highlight is a fact mapped to its exact span. Hover to inspect.</div>
-      ${srcHtml||'<div class="empty">No extracted sources.</div>'}
-    </div>`;
+  curData = d;
+  renderDetail(d);
+}
+
+async function approvePatient(id){
+  const optional = [...document.querySelectorAll(".opt-field:checked")].map(el=>el.dataset.field);
+  const note = document.getElementById("billerNote")?.value||"";
+  const btn = document.getElementById("approveBtn");
+  if(btn) btn.disabled = true;
+  const res = await fetch(`/api/patient/${id}/approve`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({approved:true, optional_fields:optional, biller_note:note})
+  });
+  const data = await res.json();
+  if(!res.ok){ alert(data.error||"Could not approve"); if(btn) btn.disabled=false; return; }
+  await loadSummary(); await loadRows();
+  curData = {...curData, ...data, canonical: curData.canonical, sources: curData.sources,
+             effective_decision: data.effective_decision, review: data.review, summary: data.summary,
+             override: {approved:true, optional_fields:optional, biller_note:note}};
+  renderDetail(curData);
 }
 
 document.querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{

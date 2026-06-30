@@ -18,5 +18,8 @@ pydantic==2.10.4
 # Biller-editable rules config (Milestone 4)
 PyYAML==6.0.3
 
+# Dashboard Excel export
+openpyxl==3.1.5
+
 # --- Optional (Milestone 2 LLM tier; pipeline runs fully without it) ---
 # google-generativeai   # Gemini grounded extraction (set GOOGLE_API_KEY)

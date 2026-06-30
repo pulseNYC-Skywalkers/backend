@@ -149,3 +149,19 @@ CREATE TABLE IF NOT EXISTS watermarks (
     since_value     TEXT,
     updated_at      TIMESTAMP DEFAULT now()
 );
+
+-- ============================================================================
+-- Milestone 5 — BILLER OVERRIDES (human approval on flag_for_review)
+-- ============================================================================
+-- When the rule engine flags a case, a biller can mark fields as optional or
+-- explicitly approve it for billing. The system decision stays auditable; the
+-- effective decision shown in the worklist reflects the override.
+CREATE TABLE IF NOT EXISTS biller_overrides (
+    internal_id       INTEGER PRIMARY KEY,
+    patient_id        TEXT,
+    approved          BOOLEAN NOT NULL DEFAULT FALSE,
+    optional_fields   JSON,              -- fields biller waived as non-blocking
+    biller_note       TEXT,
+    approved_at       TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT now()
+);
