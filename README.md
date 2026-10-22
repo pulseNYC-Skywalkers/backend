@@ -4,11 +4,11 @@ A resilient pipeline that ingests messy clinical notes from a flaky EHR API,
 extracts wound facts without hallucinating, and lets a non-technical biller
 control the billing decisions.
 
-> "The API is down 70% of the time and an LLM hallucinates — so we built a
+> "The API is down 70% of the time and an LLM hallucinates. So we built a
 > pipeline where neither can corrupt a billing decision. We cache raw data so
 > downtime only costs time, we ground every extracted fact to its exact spot in
 > the note so nothing is invented, and a deterministic, biller-configurable rule
-> engine — not the model — makes the call."
+> engine, not the model, makes the call."
 
 ## Architecture
 
