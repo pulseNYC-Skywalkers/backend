@@ -27,10 +27,10 @@ whole pipeline is **resumable and reproducible: same input → same output.**
 | Milestone | Scope | State |
 |---|---|---|
 | **1. Resilient fetch + raw store** | flaky-API client, DuckDB cache, resumable `fetch_state` | ✅ **Done** |
-| 2. Tiered extraction | raw_json/regex + LangExtract/Gemini, grounded-or-null | ⬜ Next |
-| 3. Resolve | multi-note/multi-wound aggregation per patient | ⬜ |
-| 4. Decide | config-driven 3-state rule engine, templated reasons | ⬜ |
-| 5. Dashboard | Next.js biller view + source-highlight | ⬜ |
+| 2. Tiered extraction | raw_json/regex + LangExtract/Gemini, grounded-or-null |  ✅ **Done** |
+| 3. Resolve | multi-note/multi-wound aggregation per patient |  ✅ **Done** |
+| 4. Decide | config-driven 3-state rule engine, templated reasons |  ✅ **Done** |
+| 5. Dashboard | Next.js biller view + source-highlight |  ✅ **Done** |
 | 6. Incremental + eval + observability polish | `since` watermark, golden set | ⬜ |
 
 ### Milestone 1 — verified results (against the REAL hackathon API)
